@@ -70,7 +70,7 @@ def get_lunar_phase(date):
     return phase_name, illumination
 
 
-# Main program
+# Main program!
 if __name__ == "__main__":
     print("=" * 60)
     print("Moon Phase Tracker")
