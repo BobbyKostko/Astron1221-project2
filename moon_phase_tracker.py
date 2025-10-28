@@ -5,6 +5,9 @@ Moon Phase Tracker - Using Skyfield
 from datetime import datetime, timezone, timedelta
 from skyfield.api import load, Topos
 import numpy as np
+import pandas as pd
+from zoneinfo import ZoneInfo
+import os
 
 # Load timescale and ephemeris
 ts = load.timescale()
@@ -143,11 +146,12 @@ def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=27
     rise_times = []
     set_times = []
     previous_altitude = None
+    start_altitude = None
     
     # Check at start of day
     alt, az, distance = observer.at(t0).observe(moon).apparent().altaz()
-    previous_altitude = alt.degrees
-    moon_up_all_day = previous_altitude >= 0
+    start_altitude = alt.degrees
+    previous_altitude = start_altitude
     
     # Sample throughout the day
     for i in range(1, num_samples):
@@ -173,8 +177,11 @@ def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=27
         
         previous_altitude = current_altitude
     
-    # Check if moon is down all day
-    moon_down_all_day = previous_altitude < 0 and not rise_times
+    # Determine if moon is up all day (starts up and never sets)
+    moon_up_all_day = start_altitude >= 0 and not set_times
+    
+    # Determine if moon is down all day (starts down and never rises)
+    moon_down_all_day = start_altitude < 0 and not rise_times
     
     # Return first rise and first set times (in UTC)
     rise_time = rise_times[0] if rise_times else None
@@ -186,50 +193,84 @@ def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=27
 # Main program!
 if __name__ == "__main__":
     print("=" * 60)
-    print("Moon Phase Tracker")
+    print("Moon Phase Tracker - 1 Year Data Generator")
     print("=" * 60)
-    print("\nEnter a UTC date and time to get the lunar phase.")
-    print("Format: YYYY-MM-DD HH:MM:SS")
-    print("Example: 2024-01-15 12:30:00")
-    print("(or just press Enter for current time)")
-    print()
     
-    user_input = input("Enter UTC datetime: ").strip()
+    # Get current date at 11PM Eastern time
+    eastern = ZoneInfo('America/New_York')
+    current_et = datetime.now(eastern)
+    start_date = current_et.replace(hour=23, minute=0, second=0, microsecond=0)
     
-    if not user_input:
-        # Use current time if empty input
-        date_obj = datetime.now(timezone.utc)
-    else:
-        # Parse user input
-        date_obj = datetime.strptime(user_input, '%Y-%m-%d %H:%M:%S')
-        date_obj = date_obj.replace(tzinfo=timezone.utc)
+    # Convert to UTC
+    start_date_utc = start_date.astimezone(timezone.utc)
     
-    # Get lunar phase
-    phase, illumination = get_lunar_phase(date_obj)
+    print(f"\nStarting from: {start_date.strftime('%Y-%m-%d %H:%M:%S')} Eastern Time")
+    print(f"                     ({start_date_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)")
+    print("\nGenerating data for the next 365 days...")
     
-    # Get moon rise/set times for the day
-    date_str = date_obj.strftime('%Y-%m-%d')
-    rise_time, set_time, moon_up_all_day, moon_down_all_day = get_moon_rise_set(date_str)
+    # Initialize lists to store data
+    dates = []
+    phases = []
+    illuminations = []
+    rise_times = []
+    set_times = []
+    moon_up_all_days = []
+    moon_down_all_days = []
     
-    # Display result
-    print("\n" + "=" * 60)
-    print(f"Date: {date_obj.strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    print(f"Phase: {phase}")
-    print(f"Illumination: {illumination}%")
-    print("-" * 60)
-    print("Moon Rise/Set Times (Columbus, OH):")
-    if moon_up_all_day:
-        print("  Moon is up all day")
-    elif moon_down_all_day:
-        print("  Moon is down all day")
-    else:
-        if rise_time:
-            print(f"  Moon rises at: {rise_time.strftime('%H:%M:%S')} UTC")
-        else:
-            print("  No moon rise")
-        if set_time:
-            print(f"  Moon sets at: {set_time.strftime('%H:%M:%S')} UTC")
-        else:
-            print("  No moon set")
+    # Generate data for next 365 days
+    for day in range(365):
+        # Calculate the date for lunar phase (11PM Eastern)
+        date_utc = start_date_utc + timedelta(days=day)
+        date_local = date_utc.astimezone(eastern)
+        
+        # Get lunar phase at 11PM Eastern
+        phase, illumination = get_lunar_phase(date_utc)
+        
+        # Get moon rise/set times for the calendar day
+        date_str = date_utc.strftime('%Y-%m-%d')
+        rise_time, set_time, moon_up_all_day, moon_down_all_day = get_moon_rise_set(date_str)
+        
+        # Format times for display
+        rise_str = "All day" if moon_up_all_day else ("No rise" if rise_time is None else rise_time.strftime('%H:%M:%S UTC'))
+        set_str = "Down all day" if moon_down_all_day else ("No set" if set_time is None else set_time.strftime('%H:%M:%S UTC'))
+        
+        # Store data
+        dates.append(date_local.strftime('%Y-%m-%d'))
+        phases.append(phase)
+        illuminations.append(illumination)
+        rise_times.append(rise_str)
+        set_times.append(set_str)
+        moon_up_all_days.append(moon_up_all_day)
+        moon_down_all_days.append(moon_down_all_day)
+        
+        # Progress indicator
+        if (day + 1) % 50 == 0:
+            print(f"  Generated data for {day + 1}/365 days...")
+    
+    # Create pandas DataFrame
+    df = pd.DataFrame({
+        'Date': dates,
+        'Phase': phases,
+        'Illumination_%': illuminations,
+        'Moon_Rise': rise_times,
+        'Moon_Set': set_times,
+        'Up_All_Day': moon_up_all_days,
+        'Down_All_Day': moon_down_all_days
+    })
+    
+    print("\nData generation complete!")
+    print("\nFirst 10 rows:")
+    print(df.head(10))
+    print(f"\nTotal rows: {len(df)}")
+    print("=" * 60)
+    
+    # Save to CSV (will overwrite if file exists)
+    csv_filename = 'lunar_data_1year.csv'
+    if os.path.exists(csv_filename):
+        os.remove(csv_filename)
+        print(f"\nRemoved existing file: {csv_filename}")
+    
+    df.to_csv(csv_filename, index=False)
+    print(f"Data saved to: {csv_filename}")
     print("=" * 60)
 
