@@ -4,6 +4,7 @@ Moon Phase Tracker - Using Skyfield
 
 from datetime import datetime, timezone, timedelta
 from skyfield.api import load, Topos
+from skyfield import almanac
 import numpy as np
 import pandas as pd
 from zoneinfo import ZoneInfo
@@ -107,90 +108,61 @@ def binary_search_rise_set(observer, t_start, t_end):
 
 def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=275.0):
     """
-    Get moon rise and set times for a given calendar day.
+    Get moon rise and set times for a given calendar day using Skyfield almanac.
     
     Args:
-        date: String in format 'YYYY-MM-DD' or datetime object
-              Date should be in UTC
+        date: String in format 'YYYY-MM-DD' or datetime object (assumed UTC)
         latitude: Observer's latitude in degrees (default: 39.9612, Columbus, OH)
         longitude: Observer's longitude in degrees (default: -82.9988, Columbus, OH)
         elevation_m: Observer's elevation in meters (default: 275.0, Columbus, OH)
     
     Returns:
-        rise_time: datetime object of moon rise time (UTC), or None if moon doesn't rise
-        set_time: datetime object of moon set time (UTC), or None if moon doesn't set
-        moon_up_all_day: Boolean indicating if moon is up all day
-        moon_down_all_day: Boolean indicating if moon is down all day
+        rise_time: datetime (UTC) of first moonrise in the day, or None
+        set_time: datetime (UTC) of first moonset in the day, or None
+        moon_up_all_day: True if Moon is above horizon all day
+        moon_down_all_day: True if Moon is below horizon all day
     """
-    # Convert string to datetime if needed
+    # Normalize date
     if isinstance(date, str):
         date = datetime.strptime(date, '%Y-%m-%d')
-    
-    # Make sure the datetime is UTC-aware
     if date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
-    
-    # Create observer location
-    observer = earth + Topos(latitude_degrees=latitude, longitude_degrees=longitude, 
-                             elevation_m=elevation_m)
-    
-    # Get the start and end of the day (00:00 and 23:59:59.999...)
+
+    # Observer location
+    site_topos = Topos(latitude_degrees=latitude,
+                       longitude_degrees=longitude,
+                       elevation_m=elevation_m)
+
+    # Start/end of the UTC day
     start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_of_day = date.replace(hour=23, minute=59, second=59, microsecond=999000)
-    
-    # Convert to skyfield times
+    end_of_day = start_of_day + timedelta(days=1)
+
     t0 = ts.utc(start_of_day)
     t1 = ts.utc(end_of_day)
-    
-    # Sample the day to find horizon crossings
-    # Split the day into increments and check moon altitude
-    num_samples = 288  # Check every 5 minutes (288 samples per day)
-    step_days = 1 / num_samples
-    
-    rise_times = []
-    set_times = []
-    previous_altitude = None
-    start_altitude = None
-    
-    # Check at start of day
-    alt, az, distance = observer.at(t0).observe(moon).apparent().altaz()
-    start_altitude = alt.degrees
-    previous_altitude = start_altitude
-    
-    # Sample throughout the day
-    for i in range(1, num_samples):
-        t = ts.utc(start_of_day.replace(tzinfo=timezone.utc) + timedelta(days=i*step_days))
-        alt, az, distance = observer.at(t).observe(moon).apparent().altaz()
-        current_altitude = alt.degrees
-        
-        # Detect horizon crossing
-        if previous_altitude is not None:
-            if previous_altitude < 0 and current_altitude >= 0:
-                # Rise: crossing from below to above horizon
-                # Binary search for more accurate time
-                t_prev = ts.utc(start_of_day.replace(tzinfo=timezone.utc) + timedelta(days=(i-1)*step_days))
-                rise_time = binary_search_rise_set(observer, t_prev, t)
-                if rise_time:
-                    rise_times.append(rise_time)
-            elif previous_altitude >= 0 and current_altitude < 0:
-                # Set: crossing from above to below horizon
-                t_prev = ts.utc(start_of_day.replace(tzinfo=timezone.utc) + timedelta(days=(i-1)*step_days))
-                set_time = binary_search_rise_set(observer, t_prev, t)
-                if set_time:
-                    set_times.append(set_time)
-        
-        previous_altitude = current_altitude
-    
-    # Determine if moon is up all day (starts up and never sets)
-    moon_up_all_day = start_altitude >= 0 and not set_times
-    
-    # Determine if moon is down all day (starts down and never rises)
-    moon_down_all_day = start_altitude < 0 and not rise_times
-    
-    # Return first rise and first set times (in UTC)
-    rise_time = rise_times[0] if rise_times else None
-    set_time = set_times[0] if set_times else None
-    
+
+    # Build above-horizon function and find discrete transitions
+    above_horizon_fn = almanac.risings_and_settings(eph, moon, site_topos)
+    times, events = almanac.find_discrete(t0, t1, above_horizon_fn)
+
+    # Determine if the Moon is always up or always down during the day
+    # Coerce to array to be robust across Skyfield versions (scalar vs array)
+    start_up_val = np.asarray(above_horizon_fn(t0)).ravel()[0]
+    is_up_at_start = bool(start_up_val)
+    moon_up_all_day = is_up_at_start and len(times) == 0
+    moon_down_all_day = (not is_up_at_start) and len(times) == 0
+
+    # Extract first rise and set times within the day
+    rise_time = None
+    set_time = None
+    for t, ev in zip(times, events):
+        if ev == 1 and rise_time is None:  # rising edge
+            rise_time = t.utc_datetime()
+        elif ev == 0 and set_time is None:  # setting edge
+            set_time = t.utc_datetime()
+
+        if rise_time is not None and set_time is not None:
+            break
+
     return rise_time, set_time, moon_up_all_day, moon_down_all_day
 
 
