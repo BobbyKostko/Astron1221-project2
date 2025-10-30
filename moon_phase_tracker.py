@@ -258,8 +258,7 @@ def sample_night_for_eclipse(date_utc, rise_time, set_time, moon_up_all_day, moo
     return best_eclipse_type, best_depth, best_time
 
 
-# Main program!
-if __name__ == "__main__":
+def main():
     print("=" * 60)
     print("Moon Phase Tracker - 1 Year Data Generator")
     print("=" * 60)
@@ -268,14 +267,11 @@ if __name__ == "__main__":
     eastern = ZoneInfo('America/New_York')
     current_et = datetime.now(eastern)
     start_date = current_et.replace(hour=23, minute=0, second=0, microsecond=0)
-    
     # Convert to UTC
     start_date_utc = start_date.astimezone(timezone.utc)
-    
     print(f"\nStarting from: {start_date.strftime('%Y-%m-%d %H:%M:%S')} Eastern Time")
     print(f"                     ({start_date_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)")
     print("\nGenerating data for the next 365 days...")
-    
     # Initialize lists to store data
     dates = []
     phases = []
@@ -287,47 +283,47 @@ if __name__ == "__main__":
     eclipse_types = []
     eclipse_depths = []
     eclipse_times = []
-    
+    supermoon_flags = []
     # Dictionary to store eclipses by their calendar date (Eastern time)
     # Key: date string "YYYY-MM-DD", Value: (eclipse_type, depth, time_str)
     eclipse_dict = {}
-    
     # Generate data for next 365 days
     for day in range(365):
         # Calculate the date for lunar phase (11PM Eastern)
         date_utc = start_date_utc + timedelta(days=day)
         date_local = date_utc.astimezone(eastern)
-        
         # Get lunar phase at 11PM Eastern
         phase, illumination = get_lunar_phase(date_utc)
-        
+        # --- SUPERMOON CHECK ---
+        # Compute geocentric distance at 11PM Eastern (UTC)
+        t = ts.utc(date_utc)
+        moon_apparent = earth.at(t).observe(moon).apparent()
+        distance_km = moon_apparent.distance().km  # Skyfield distance is in AU by default; .km gets km
+        # Supermoon definition: Full Moon and ≤360,000 km
+        is_supermoon = phase == "Full Moon" and distance_km <= 360000
+        supermoon_flags.append(is_supermoon)
+        # --- END SUPERMOON CHECK ---
         # Get moon rise/set times for the calendar day
         date_str = date_utc.strftime('%Y-%m-%d')
         rise_time, set_time, moon_up_all_day, moon_down_all_day = get_moon_rise_set(date_str)
-        
         # Check for lunar eclipse - sample hourly throughout the night if near full moon
         eclipse_type, eclipse_depth, eclipse_time_utc = None, 0, None
         if illumination > 85:  # Only check during near full moons
             eclipse_type, eclipse_depth, eclipse_time_utc = sample_night_for_eclipse(
                 date_utc, rise_time, set_time, moon_up_all_day, moon_down_all_day
             )
-            
             # Store eclipse info keyed by its actual calendar date (in Eastern time)
             if eclipse_time_utc:
                 eclipse_local = eclipse_time_utc.astimezone(eastern)
                 eclipse_date = eclipse_local.strftime('%Y-%m-%d')
                 eclipse_time_str = eclipse_local.strftime('%Y-%m-%d %H:%M ET')
-                
                 # Store in dictionary by actual date (keep the one with highest depth if multiple)
                 if eclipse_date not in eclipse_dict or eclipse_depth > eclipse_dict[eclipse_date][1]:
                     eclipse_dict[eclipse_date] = (eclipse_type, eclipse_depth, eclipse_time_str)
-        
         # Format times for display
         rise_str = "All day" if moon_up_all_day else ("No rise" if rise_time is None else rise_time.strftime('%H:%M:%S UTC'))
         set_str = "Down all day" if moon_down_all_day else ("No set" if set_time is None else set_time.strftime('%H:%M:%S UTC'))
-        
         current_date = date_local.strftime('%Y-%m-%d')
-        
         # Store data
         dates.append(current_date)
         phases.append(phase)
@@ -336,8 +332,8 @@ if __name__ == "__main__":
         set_times.append(set_str)
         moon_up_all_days.append(moon_up_all_day)
         moon_down_all_days.append(moon_down_all_day)
-        
-        # Get eclipse info for this date (if it exists in our dictionary)
+    # After all days, map eclipse info for each calendar date
+    for i, current_date in enumerate(dates):
         if current_date in eclipse_dict:
             eclipse_type, eclipse_depth, eclipse_time_str = eclipse_dict[current_date]
             eclipse_types.append(eclipse_type)
@@ -347,11 +343,9 @@ if __name__ == "__main__":
             eclipse_types.append("None")
             eclipse_depths.append(0)
             eclipse_times.append("None")
-        
         # Progress indicator
-        if (day + 1) % 50 == 0:
-            print(f"  Generated data for {day + 1}/365 days...")
-    
+        if (i + 1) % 50 == 0:
+            print(f"  Generated data for {i + 1}/365 days...")
     # Create pandas DataFrame
     df = pd.DataFrame({
         'Date': dates,
@@ -363,22 +357,23 @@ if __name__ == "__main__":
         'Down_All_Day': moon_down_all_days,
         'Eclipse_Type': eclipse_types,
         'Eclipse_Depth_%': eclipse_depths,
-        'Eclipse_Time': eclipse_times
+        'Eclipse_Time': eclipse_times,
+        'Supermoon': supermoon_flags
     })
-    
     print("\nData generation complete!")
     print("\nFirst 10 rows:")
     print(df.head(10))
     print(f"\nTotal rows: {len(df)}")
     print("=" * 60)
-    
     # Save to CSV (will overwrite if file exists)
     csv_filename = 'lunar_data_1year.csv'
     if os.path.exists(csv_filename):
         os.remove(csv_filename)
         print(f"\nRemoved existing file: {csv_filename}")
-    
     df.to_csv(csv_filename, index=False)
     print(f"Data saved to: {csv_filename}")
     print("=" * 60)
+
+if __name__ == "__main__":
+    main()
 
