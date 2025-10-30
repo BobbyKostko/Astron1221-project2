@@ -49,9 +49,9 @@ def get_lunar_phase(date):
     t = ts.utc(date)
     
     # Calculate elongation (angle between sun and moon as seen from Earth)
-    sun_pos = earth.at(t).observe(sun).apparent()
-    moon_pos = earth.at(t).observe(moon).apparent()
-    elongation = sun_pos.separation_from(moon_pos).degrees
+    # using Skyfield's built-in moon_phase function
+    phase_angle = almanac.moon_phase(eph, t)
+    elongation = phase_angle.degrees
     
     # Calculate illumination percentage
     # elongation: 0° (New) -> 180° (Full) -> 360° (New)
