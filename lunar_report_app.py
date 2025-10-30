@@ -47,7 +47,6 @@ def generate_calendar_image(report_data):
         day_font = ImageFont.truetype("arial.ttf", 18)
         small_font = ImageFont.truetype("arial.ttf", 12)
         tiny_font = ImageFont.truetype("arial.ttf", 10)
-        use_textbbox = True  # Newer PIL version
     except:
         # Fallback to default font
         title_font = ImageFont.load_default()
@@ -55,7 +54,6 @@ def generate_calendar_image(report_data):
         day_font = ImageFont.load_default()
         small_font = ImageFont.load_default()
         tiny_font = ImageFont.load_default()
-        use_textbbox = False  # Older PIL version
     
     # Draw title
     title_text = f"30-Day Lunar Calendar"
@@ -66,11 +64,22 @@ def generate_calendar_image(report_data):
     
     # Helper function to get text width
     def get_text_width(text, font):
-        if use_textbbox:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            return bbox[2] - bbox[0]
-        else:
-            return draw.textsize(text, font=font)[0]
+        try:
+            if hasattr(draw, 'textbbox'):
+                bbox = draw.textbbox((0, 0), text, font=font)
+                return bbox[2] - bbox[0]
+            if hasattr(draw, 'textlength'):
+                return int(draw.textlength(text, font=font))
+            if hasattr(font, 'getbbox'):
+                bbox = font.getbbox(text)
+                return bbox[2] - bbox[0]
+            if hasattr(font, 'getsize'):
+                w, _ = font.getsize(text)
+                return w
+        except Exception:
+            pass
+        # Conservative fallback
+        return max(0, len(text) * 8)
     
     # Get text bounding box for centering
     text_width = get_text_width(title_text, title_font)
