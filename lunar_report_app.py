@@ -114,18 +114,6 @@ def generate_calendar_image(report_data):
         text_x = x + (cell_width - text_width) // 2
         draw.text((text_x, y + 15), day, fill='white', font=header_font)
     
-    # Phase symbols mapping (Unicode characters that work in any font)
-    phase_symbols = {
-        'New Moon': '●',
-        'Waxing Crescent': '◐',
-        'First Quarter': '◗',
-        'Waxing Gibbous': '◑',
-        'Full Moon': '◉',
-        'Waning Gibbous': '◓',
-        'Last Quarter': '◖',
-        'Waning Crescent': '◒'
-    }
-    
     # Draw calendar cells
     for idx, (_, data_row) in enumerate(report_data.iterrows()):
         day_num = idx + 1
@@ -157,21 +145,6 @@ def generate_calendar_image(report_data):
         day_x = x + (cell_width - text_width - 10)
         draw.text((day_x, y + 5), day_str, fill='#333', font=day_font)
         
-        # Moon phase symbol
-        moon_symbol = phase_symbols.get(phase, '○')
-        moon_x = x + 10
-        moon_y = y + 35
-        
-        # Color based on phase
-        if phase == 'Full Moon':
-            symbol_color = '#FFD700'  # Gold
-        elif phase == 'New Moon':
-            symbol_color = '#2F2F2F'  # Dark gray
-        else:
-            symbol_color = '#4A4A4A'  # Medium gray
-        
-        draw.text((moon_x, moon_y), moon_symbol, fill=symbol_color, font=day_font)
-        
         # Phase name (truncated if too long)
         phase_text = phase.replace(' ', '\n') if len(phase) > 10 else phase
         text_width = get_text_width(phase_text.split('\n')[0], small_font)
@@ -188,11 +161,11 @@ def generate_calendar_image(report_data):
         
         if rise_time not in ['All day', 'No rise', 'Down all day']:
             rise_simple = rise_time.split(' ')[0][:5]  # Get HH:MM
-            draw.text((x + 10, y + 110), f"↑ {rise_simple}", fill='#4A90E2', font=tiny_font)
+            draw.text((x + 10, y + 110), f"Rise: {rise_simple}", fill='#4A90E2', font=tiny_font)
         
         if set_time not in ['No set', 'Down all day', 'All day']:
             set_simple = set_time.split(' ')[0][:5]
-            draw.text((x + 10, y + 125), f"↓ {set_simple}", fill='#E24A90', font=tiny_font)
+            draw.text((x + 10, y + 125), f"Set: {set_simple}", fill='#E24A90', font=tiny_font)
         
         # Special indicators
         special_y = y + 145
@@ -204,60 +177,10 @@ def generate_calendar_image(report_data):
         
         # Only show eclipse if type is present and not 'None'
         if pd.notna(data_row['Eclipse_Type']) and data_row['Eclipse_Type'] != 'None':
-            eclipse_text = f"● {data_row['Eclipse_Type']}"
+            eclipse_text = f"Eclipse: {data_row['Eclipse_Type']}"
             draw.text((x + 10, special_y + 12 if has_special else special_y), 
                      eclipse_text, fill='#8B0000', font=tiny_font)
     
-    # Legend/Key in bottom-right corner
-    legend_items = [
-        {"text": "↑ Rise time", "color": "#4A90E2"},
-        {"text": "↓ Set time", "color": "#E24A90"},
-        {"text": "● Eclipse", "color": "#8B0000"},
-        {"text": "* Supermoon", "color": "#FF6347"}
-    ]
-
-    legend_padding = 10
-    swatch_width = 14
-    swatch_height = 10
-    gap = 8
-    line_spacing = 6
-
-    # Measure legend size
-    max_text_w = 0
-    line_h = 0
-    for item in legend_items:
-        tw = get_text_width(item["text"], tiny_font)
-        th = get_text_height(item["text"], tiny_font)
-        if tw > max_text_w:
-            max_text_w = tw
-        if th > line_h:
-            line_h = th
-
-    legend_width = legend_padding * 2 + swatch_width + gap + max_text_w
-    legend_height = legend_padding * 2 + len(legend_items) * line_h + (len(legend_items) - 1) * line_spacing
-
-    legend_x = calendar_width - padding - legend_width
-    legend_y = calendar_height - padding - legend_height
-
-    # Draw legend background and border
-    draw.rectangle([legend_x, legend_y, legend_x + legend_width, legend_y + legend_height], fill="#FFFFFF", outline="#1f3a5f", width=1)
-
-    # Draw each legend row
-    current_y = legend_y + legend_padding
-    for item in legend_items:
-        # Color swatch (filled rectangle)
-        sw_x1 = legend_x + legend_padding
-        sw_y1 = current_y + max(0, (line_h - swatch_height) // 2)
-        sw_x2 = sw_x1 + swatch_width
-        sw_y2 = sw_y1 + swatch_height
-        draw.rectangle([sw_x1, sw_y1, sw_x2, sw_y2], fill=item["color"], outline="#1f3a5f")
-
-        # Text label
-        text_x = sw_x2 + gap
-        draw.text((text_x, current_y), item["text"], fill=item["color"], font=tiny_font)
-
-        current_y += line_h + line_spacing
-
     return img
 
 # Load the data
