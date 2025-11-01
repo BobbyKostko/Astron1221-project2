@@ -159,15 +159,13 @@ def generate_calendar_image(report_data):
         day_x = x + (cell_width - text_width - 10)
         draw.text((day_x, y + 5), month_day_str, fill='#333', font=day_font)
         
-        # Phase name (truncated if too long)
-        phase_text = phase.replace(' ', '\n') if len(phase) > 10 else phase
-        text_width = get_text_width(phase_text.split('\n')[0], small_font)
-        phase_x = x + (cell_width - text_width - 10)
-        draw.text((phase_x, y + 75), phase_text, fill='#555', font=small_font)
-        
         # Illumination percentage
         illum_text = f"{data_row['Illumination_%']:.0f}%"
         draw.text((x + 10, y + 95), illum_text, fill='#333', font=small_font)
+        
+        # Phase name - positioned slightly above illumination percentage
+        phase_text = phase.replace(' ', '\n') if len(phase) > 10 else phase
+        draw.text((x + 10, y + 80), phase_text, fill='#555', font=small_font)
         
         # Rise/Set times (simplified)
         rise_time = data_row['Moon_Rise']
