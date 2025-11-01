@@ -34,7 +34,20 @@ def generate_calendar_image(report_data):
     title_height = 80
     padding = 20
     calendar_width = 7 * cell_width + 2 * padding
-    calendar_height = title_height + header_height + 5 * cell_height + 2 * padding
+    # Get the weekday of the first date (0=Sunday, 1=Monday, ..., 6=Saturday)
+    # Python weekday(): Monday=0, Tuesday=1, ..., Sunday=6
+    # Convert to Sunday=0, Monday=1, ..., Saturday=6
+    if len(report_data) > 0:
+        first_date = report_data.iloc[0]['Date']
+        first_weekday = (first_date.weekday() + 1) % 7
+    else:
+        first_weekday = 0
+    
+    # Calculate number of rows needed (30 days, starting from any day of week)
+    num_days = len(report_data) if len(report_data) > 0 else 30
+    # Calculate rows: last day position is first_weekday + (num_days - 1)
+    num_rows = ((first_weekday + num_days - 1) // 7) + 1
+    calendar_height = title_height + header_height + num_rows * cell_height + 2 * padding
     
     # Create image with white background
     img = Image.new('RGB', (calendar_width, calendar_height), color='white')
@@ -116,11 +129,11 @@ def generate_calendar_image(report_data):
     
     # Draw calendar cells
     for idx, (_, data_row) in enumerate(report_data.iterrows()):
-        day_num = idx + 1
-        
-        # Calculate grid position
-        row_idx = (day_num - 1) // 7
-        col_idx = (day_num - 1) % 7
+        # Calculate grid position with correct day-of-week alignment
+        # col_idx starts at first_weekday and wraps around
+        col_idx = (first_weekday + idx) % 7
+        # row_idx accounts for the offset from the start
+        row_idx = (first_weekday + idx) // 7
         
         x = padding + col_idx * cell_width
         y = title_height + padding + header_height + row_idx * cell_height
@@ -139,11 +152,12 @@ def generate_calendar_image(report_data):
         draw.rectangle([x, y, x + cell_width - 2, y + cell_height - 2], 
                       fill=bg_color, outline='#1f3a5f', width=1)
         
-        # Day number
-        day_str = str(day_num)
-        text_width = get_text_width(day_str, day_font)
+        # Day number - use actual month/day from the date
+        actual_date = data_row['Date']
+        month_day_str = f"{actual_date.month}/{actual_date.day}"
+        text_width = get_text_width(month_day_str, day_font)
         day_x = x + (cell_width - text_width - 10)
-        draw.text((day_x, y + 5), day_str, fill='#333', font=day_font)
+        draw.text((day_x, y + 5), month_day_str, fill='#333', font=day_font)
         
         # Phase name (truncated if too long)
         phase_text = phase.replace(' ', '\n') if len(phase) > 10 else phase
