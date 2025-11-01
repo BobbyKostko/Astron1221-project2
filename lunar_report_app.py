@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from PIL import Image, ImageDraw, ImageFont
 import io
+import platform
 
 # Page configuration
 st.set_page_config(
@@ -55,11 +56,18 @@ def generate_calendar_image(report_data):
     
     # Try to load fonts, fall back to default if not available
     try:
-        title_font = ImageFont.truetype("arial.ttf", 32)
-        header_font = ImageFont.truetype("arial.ttf", 20)
-        day_font = ImageFont.truetype("arial.ttf", 18)
-        small_font = ImageFont.truetype("arial.ttf", 12)
-        tiny_font = ImageFont.truetype("arial.ttf", 10)
+        # Use different paths based on OS
+        if platform.system() == 'Windows':
+            font_path = "C:/Windows/Fonts/arial.ttf"
+        else:
+            # Try common Linux/Mac paths
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        
+        title_font = ImageFont.truetype(font_path, 32)
+        header_font = ImageFont.truetype(font_path, 20)
+        day_font = ImageFont.truetype(font_path, 18)
+        small_font = ImageFont.truetype(font_path, 12)
+        tiny_font = ImageFont.truetype(font_path, 10)
     except:
         # Fallback to default font
         title_font = ImageFont.load_default()
@@ -163,9 +171,9 @@ def generate_calendar_image(report_data):
         illum_text = f"{data_row['Illumination_%']:.0f}%"
         draw.text((x + 10, y + 95), illum_text, fill='#333', font=small_font)
         
-        # Phase name - positioned slightly above illumination percentage
+        # Phase name - positioned above illumination percentage
         phase_text = phase.replace(' ', '\n') if len(phase) > 10 else phase
-        draw.text((x + 10, y + 80), phase_text, fill='#555', font=small_font)
+        draw.text((x + 10, y + 60), phase_text, fill='#555', font=small_font)
         
         # Rise/Set times (simplified)
         rise_time = data_row['Moon_Rise']
