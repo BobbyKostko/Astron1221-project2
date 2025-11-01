@@ -66,8 +66,8 @@ def generate_calendar_image(report_data):
         title_font = ImageFont.truetype(font_path, 32)
         header_font = ImageFont.truetype(font_path, 20)
         day_font = ImageFont.truetype(font_path, 18)
-        small_font = ImageFont.truetype(font_path, 12)
-        tiny_font = ImageFont.truetype(font_path, 10)
+        small_font = ImageFont.truetype(font_path, 15)
+        tiny_font = ImageFont.truetype(font_path, 13)
     except:
         # Fallback to default font
         title_font = ImageFont.load_default()
@@ -131,9 +131,9 @@ def generate_calendar_image(report_data):
         draw.rectangle([x, y, x + cell_width, y + header_height], 
                       fill='#4A90E2', outline='#1f3a5f', width=2)
         # Center text
-        text_width = get_text_width(day, header_font)
+        text_width = get_text_width(day, title_font)
         text_x = x + (cell_width - text_width) // 2
-        draw.text((text_x, y + 15), day, fill='white', font=header_font)
+        draw.text((text_x, y + 15), day, fill='white', font=title_font)
     
     # Draw calendar cells
     for idx, (_, data_row) in enumerate(report_data.iterrows()):
