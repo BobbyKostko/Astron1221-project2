@@ -260,7 +260,7 @@ def sample_night_for_eclipse(date_utc, rise_time, set_time, moon_up_all_day, moo
 
 def main():
     print("=" * 60)
-    print("Moon Phase Tracker - 1 Year Data Generator")
+    print("Moon Phase Tracker - 5 Year Data Generator")
     print("=" * 60)
     
     # Get current date at 11PM Eastern time
@@ -271,7 +271,7 @@ def main():
     start_date_utc = start_date.astimezone(timezone.utc)
     print(f"\nStarting from: {start_date.strftime('%Y-%m-%d %H:%M:%S')} Eastern Time")
     print(f"                     ({start_date_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)")
-    print("\nGenerating data for the next 365 days...")
+    print("\nGenerating data for the next 1825 days (5 years)...")
     # Initialize lists to store data
     dates = []
     phases = []
@@ -287,8 +287,8 @@ def main():
     # Dictionary to store eclipses by their calendar date (Eastern time)
     # Key: date string "YYYY-MM-DD", Value: (eclipse_type, depth, time_str)
     eclipse_dict = {}
-    # Generate data for next 365 days
-    for day in range(365):
+    # Generate data for next 1825 days (5 years)
+    for day in range(1825):
         # Calculate the date for lunar phase (11PM Eastern)
         date_utc = start_date_utc + timedelta(days=day)
         date_local = date_utc.astimezone(eastern)
@@ -345,7 +345,7 @@ def main():
             eclipse_times.append("None")
         # Progress indicator
         if (i + 1) % 50 == 0:
-            print(f"  Generated data for {i + 1}/365 days...")
+            print(f"  Generated data for {i + 1}/1825 days...")
     # Create pandas DataFrame
     df = pd.DataFrame({
         'Date': dates,
@@ -366,7 +366,7 @@ def main():
     print(f"\nTotal rows: {len(df)}")
     print("=" * 60)
     # Save to CSV (will overwrite if file exists)
-    csv_filename = 'lunar_data_1year.csv'
+    csv_filename = 'lunar_data_5years.csv'
     if os.path.exists(csv_filename):
         os.remove(csv_filename)
         print(f"\nRemoved existing file: {csv_filename}")

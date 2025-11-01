@@ -18,7 +18,7 @@ st.set_page_config(
 # Load data
 @st.cache_data
 def load_data():
-    df = pd.read_csv('lunar_data_1year.csv')
+    df = pd.read_csv('lunar_data_5years.csv')
     # Convert Date to datetime
     df['Date'] = pd.to_datetime(df['Date'])
     return df
