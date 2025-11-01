@@ -64,7 +64,7 @@ def generate_calendar_image(report_data):
             font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         
         title_font = ImageFont.truetype(font_path, 32)
-        header_font = ImageFont.truetype(font_path, 20)
+        header_font = ImageFont.truetype(font_path, 25)
         day_font = ImageFont.truetype(font_path, 18)
         small_font = ImageFont.truetype(font_path, 15)
         tiny_font = ImageFont.truetype(font_path, 13)
@@ -131,9 +131,9 @@ def generate_calendar_image(report_data):
         draw.rectangle([x, y, x + cell_width, y + header_height], 
                       fill='#4A90E2', outline='#1f3a5f', width=2)
         # Center text
-        text_width = get_text_width(day, title_font)
+        text_width = get_text_width(day, header_font)
         text_x = x + (cell_width - text_width) // 2
-        draw.text((text_x, y + 15), day, fill='white', font=title_font)
+        draw.text((text_x, y + 15), day, fill='white', font=header_font)
     
     # Draw calendar cells
     for idx, (_, data_row) in enumerate(report_data.iterrows()):
@@ -169,7 +169,7 @@ def generate_calendar_image(report_data):
         
         # Illumination percentage
         illum_text = f"{data_row['Illumination_%']:.0f}%"
-        draw.text((x + 10, y + 95), illum_text, fill='#333', font=small_font)
+        draw.text((x + 10, y + 95), illum_text, fill='#333', font=tiny_font)
         
         # Phase name - positioned above illumination percentage
         phase_text = phase.replace(' ', '\n') if len(phase) > 10 else phase
