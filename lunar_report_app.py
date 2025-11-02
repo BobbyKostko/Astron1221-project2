@@ -414,134 +414,6 @@ st.download_button(
 
 st.markdown("---")
 
-# Daily Report Section
-st.header("📅 Daily Moon Report")
-
-# Add date picker for individual day report
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    individual_date = st.date_input(
-        "Select a specific date:",
-        value=selected_date,
-        min_value=min_date.date(),
-        max_value=max_date.date(),
-        key="individual_date"
-    )
-
-# Get data for the selected individual date
-individual_data = df[df['Date'] == pd.Timestamp(individual_date)]
-
-if not individual_data.empty:
-    row = individual_data.iloc[0]
-    
-    with col2:
-        st.markdown("<br>", unsafe_allow_html=True)  # Add some spacing
-    
-    # Display the daily report in a nice card-like layout
-    st.markdown("---")
-    
-    report_col1, report_col2 = st.columns([2, 1])
-    
-    with report_col1:
-        st.subheader(f"🌙 {individual_date.strftime('%B %d, %Y')}")
-        
-        # Moon phase info
-        phase_emoji = {
-            'New Moon': '🌑',
-            'Waxing Crescent': '🌒',
-            'First Quarter': '🌓',
-            'Waxing Gibbous': '🌔',
-            'Full Moon': '🌕',
-            'Waning Gibbous': '🌖',
-            'Last Quarter': '🌗',
-            'Waning Crescent': '🌘'
-        }
-        phase_icon = phase_emoji.get(row['Phase'], '🌙')
-        
-        st.markdown(f"### {phase_icon} {row['Phase']}")
-        st.markdown(f"**Illumination:** {row['Illumination_%']:.1f}%")
-        
-        # Rise and set times
-        st.markdown("---")
-        st.markdown("#### ⏰ Moon Visibility")
-        
-        col_rise, col_set = st.columns(2)
-        with col_rise:
-            if row['Moon_Rise'] not in ['All day', 'No rise', 'Down all day']:
-                st.markdown(f"**🌅 Rise:** {row['Moon_Rise']}")
-            elif row['Moon_Rise'] == 'All day':
-                st.markdown(f"**🌅 Rise:** All day")
-            else:
-                st.markdown(f"**🌅 Rise:** No rise")
-        
-        with col_set:
-            if row['Moon_Set'] not in ['No set', 'Down all day', 'All day']:
-                st.markdown(f"**🌇 Set:** {row['Moon_Set']}")
-            elif row['Moon_Set'] == 'Down all day':
-                st.markdown(f"**🌇 Set:** Down all day")
-            elif row['Moon_Set'] == 'All day':
-                st.markdown(f"**🌇 Set:** All day")
-            else:
-                st.markdown(f"**🌇 Set:** No set")
-    
-    with report_col2:
-        # Notable events box
-        st.subheader("✨ Notable Events")
-        notable_events = []
-        
-        if row['Supermoon']:
-            notable_events.append({
-                'icon': '🌟',
-                'title': 'Super Moon',
-                'description': f"The moon is at its closest point to Earth ({row['Illumination_%']:.1f}% illuminated)"
-            })
-        
-        if pd.notna(row['Eclipse_Type']) and row['Eclipse_Type'] != 'None':
-            eclipse_desc = f"Lunar eclipse with {row['Eclipse_Depth_%']:.0f}% shadow coverage"
-            if pd.notna(row['Eclipse_Time']) and row['Eclipse_Time'] != 'None':
-                eclipse_desc += f" at {row['Eclipse_Time']}"
-            
-            notable_events.append({
-                'icon': '🔴',
-                'title': f'{row["Eclipse_Type"]} Eclipse',
-                'description': eclipse_desc
-            })
-        
-        if len(notable_events) == 0:
-            st.info("No notable events on this date")
-        else:
-            for event in notable_events:
-                with st.container():
-                    st.markdown(f"**{event['icon']} {event['title']}**")
-                    st.markdown(f"*{event['description']}*")
-                    st.markdown("---")
-        
-        # Display phase visualization area
-        st.markdown("#### 📊 Phase Position")
-        phase_num = {
-            'New Moon': 0,
-            'Waxing Crescent': 1,
-            'First Quarter': 2,
-            'Waxing Gibbous': 3,
-            'Full Moon': 4,
-            'Waning Gibbous': 5,
-            'Last Quarter': 6,
-            'Waning Crescent': 7
-        }.get(row['Phase'], 0)
-        
-        # Create a simple visual indicator
-        phases_list = ['New', 'Waxing\nCrescent', 'First\nQuarter', 'Waxing\nGibbous', 
-                      'Full', 'Waning\nGibbous', 'Last\nQuarter', 'Waning\nCrescent']
-        
-        for i, phase_name in enumerate(phases_list):
-            if i == phase_num:
-                st.markdown(f"**→ {phase_name}**")
-            else:
-                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;{phase_name}", unsafe_allow_html=True)
-    
-    st.markdown("---")
-
 # Special Events Section
 st.header("🌑 Special Events")
 
@@ -575,6 +447,82 @@ with col2:
         st.info("No supermoons during this period.")
 
 st.markdown("---")
+
+# Daily Report Section
+st.header("📅 Daily Moon Report")
+
+# Add date picker for individual day report
+individual_date = st.date_input(
+    "Select a specific date:",
+    value=selected_date,
+    min_value=min_date.date(),
+    max_value=max_date.date(),
+    key="individual_date"
+)
+
+# Get data for the selected individual date
+individual_data = df[df['Date'] == pd.Timestamp(individual_date)]
+
+if not individual_data.empty:
+    row = individual_data.iloc[0]
+    
+    # Display the daily report in a nice card-like layout
+    st.markdown("---")
+    
+    report_col1, report_col2 = st.columns([2, 1])
+    
+    with report_col1:
+        st.subheader(f"🌙 {individual_date.strftime('%B %d, %Y')}")
+        
+        # Moon phase info
+        phase_emoji = {
+            'New Moon': '🌑',
+            'Waxing Crescent': '🌒',
+            'First Quarter': '🌓',
+            'Waxing Gibbous': '🌔',
+            'Full Moon': '🌕',
+            'Waning Gibbous': '🌖',
+            'Last Quarter': '🌗',
+            'Waning Crescent': '🌘'
+        }
+        phase_icon = phase_emoji.get(row['Phase'], '🌙')
+        
+        st.markdown(f"### {phase_icon} {row['Phase']}")
+        st.markdown(f"**Illumination:** {row['Illumination_%']:.1f}%")
+    
+    with report_col2:
+        # Notable events box
+        st.subheader("✨ Notable Events")
+        notable_events = []
+        
+        if row['Supermoon']:
+            notable_events.append({
+                'icon': '🌟',
+                'title': 'Super Moon',
+                'description': f"The moon is at its closest point to Earth ({row['Illumination_%']:.1f}% illuminated)"
+            })
+        
+        if pd.notna(row['Eclipse_Type']) and row['Eclipse_Type'] != 'None':
+            eclipse_desc = f"Lunar eclipse with {row['Eclipse_Depth_%']:.0f}% shadow coverage"
+            if pd.notna(row['Eclipse_Time']) and row['Eclipse_Time'] != 'None':
+                eclipse_desc += f" at {row['Eclipse_Time']}"
+            
+            notable_events.append({
+                'icon': '🔴',
+                'title': f'{row["Eclipse_Type"]} Eclipse',
+                'description': eclipse_desc
+            })
+        
+        if len(notable_events) == 0:
+            st.info("No notable events on this date")
+        else:
+            for event in notable_events:
+                with st.container():
+                    st.markdown(f"**{event['icon']} {event['title']}**")
+                    st.markdown(f"*{event['description']}*")
+                    st.markdown("---")
+    
+    st.markdown("---")
 
 # Footer
 st.markdown(
