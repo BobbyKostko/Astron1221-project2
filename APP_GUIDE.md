@@ -8,7 +8,7 @@
    ```
 
 2. **Ensure the CSV file exists:**
-   - The app requires `lunar_data_1year.csv` to be in the same directory
+   - The app requires `lunar_data_5years.csv` to be in the same directory
    - If you don't have it, run: `python moon_phase_tracker.py`
 
 3. **Launch the Streamlit app:**
@@ -74,6 +74,17 @@
   - Illumination percentage
   - Rise and set times
 
+#### 📅 Daily Moon Report
+- Detailed report for any individual date
+- Select a specific date to view comprehensive day-by-day information
+- Displays:
+  - Moon phase with emoji icon
+  - Illumination percentage
+  - Moon rise and set times
+  - Notable events (supermoons, eclipses)
+  - Phase position in the lunar cycle
+- Perfect for checking a specific date or planning observations
+
 #### 📈 Summary Statistics
 
 **Left Column - Phase Distribution:**
@@ -101,10 +112,12 @@
 
 5. **Compare Periods:** Switch between different months to compare lunar activity
 
+6. **Use Daily Reports:** Check specific dates for detailed moon information including rise/set times and notable events
+
 ## Troubleshooting
 
 **App won't start?**
-- Make sure `lunar_data_1year.csv` exists in the same folder as the app
+- Make sure `lunar_data_5years.csv` exists in the same folder as the app
 - Verify all packages are installed: `pip list` and check for streamlit, plotly, pandas
 
 **No data showing?**
