@@ -260,18 +260,25 @@ def sample_night_for_eclipse(date_utc, rise_time, set_time, moon_up_all_day, moo
 
 def main():
     print("=" * 60)
-    print("Moon Phase Tracker - 5 Year Data Generator")
+    print("Moon Phase Tracker - Data Generator (1900-2035)")
     print("=" * 60)
     
-    # Get current date at 11PM Eastern time
+    # Set date range: January 1, 1900 to December 31, 2035 at 11PM Eastern time
     eastern = ZoneInfo('America/New_York')
-    current_et = datetime.now(eastern)
-    start_date = current_et.replace(hour=23, minute=0, second=0, microsecond=0)
+    start_date = datetime(1900, 1, 1, 23, 0, 0, tzinfo=eastern)
+    end_date = datetime(2035, 12, 31, 23, 0, 0, tzinfo=eastern)
     # Convert to UTC
     start_date_utc = start_date.astimezone(timezone.utc)
+    end_date_utc = end_date.astimezone(timezone.utc)
+    
+    # Calculate number of days
+    total_days = (end_date_utc - start_date_utc).days + 1
+    
     print(f"\nStarting from: {start_date.strftime('%Y-%m-%d %H:%M:%S')} Eastern Time")
     print(f"                     ({start_date_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)")
-    print("\nGenerating data for the next 1825 days (5 years)...")
+    print(f"\nEnding at: {end_date.strftime('%Y-%m-%d %H:%M:%S')} Eastern Time")
+    print(f"                 ({end_date_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC)")
+    print(f"\nGenerating data for {total_days} days (1900-2035)...")
     # Initialize lists to store data
     dates = []
     phases = []
@@ -287,8 +294,8 @@ def main():
     # Dictionary to store eclipses by their calendar date (Eastern time)
     # Key: date string "YYYY-MM-DD", Value: (eclipse_type, depth, time_str)
     eclipse_dict = {}
-    # Generate data for next 1825 days (5 years)
-    for day in range(1825):
+    # Generate data for all days from 1900 to 2035
+    for day in range(total_days):
         # Calculate the date for lunar phase (11PM Eastern)
         date_utc = start_date_utc + timedelta(days=day)
         date_local = date_utc.astimezone(eastern)
@@ -344,8 +351,8 @@ def main():
             eclipse_depths.append(0)
             eclipse_times.append("None")
         # Progress indicator
-        if (i + 1) % 50 == 0:
-            print(f"  Generated data for {i + 1}/1825 days...")
+        if (i + 1) % 500 == 0:
+            print(f"  Generated data for {i + 1}/{total_days} days...")
     # Create pandas DataFrame
     df = pd.DataFrame({
         'Date': dates,
@@ -366,7 +373,7 @@ def main():
     print(f"\nTotal rows: {len(df)}")
     print("=" * 60)
     # Save to CSV (will overwrite if file exists)
-    csv_filename = 'lunar_data_5years.csv'
+    csv_filename = 'lunar_data_1900_2035.csv'
     if os.path.exists(csv_filename):
         os.remove(csv_filename)
         print(f"\nRemoved existing file: {csv_filename}")

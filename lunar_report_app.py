@@ -18,7 +18,7 @@ st.set_page_config(
 # Load data
 @st.cache_data
 def load_data():
-    df = pd.read_csv('lunar_data_5years.csv')
+    df = pd.read_csv('lunar_data_1900_2035.csv')
     # Convert Date to datetime
     df['Date'] = pd.to_datetime(df['Date'])
     return df
@@ -208,7 +208,7 @@ df = load_data()
 
 # Title and header
 st.title("🌙 Lunar Report App")
-st.markdown("### Visualizing Monthly Moon Phases & Daily Reports from Annual Data")
+st.markdown("### Visualizing Moon Phases & Daily Reports (1900-2035, 136 Years of Data)")
 
 # Sidebar for date selection
 st.sidebar.header("📅 Date Selection")
