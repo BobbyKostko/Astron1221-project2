@@ -28,24 +28,12 @@ def get_lunar_phase(date):
     Get the lunar phase for a given UTC datetime.
     
     Args:
-        date: datetime object or string in format 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
-              Date/time should be in UTC
-              
+        date: UTC-aware datetime object
+        
     Returns:
         phase_name: String name of the phase (e.g., "Full Moon")
         illumination: Percentage of moon illuminated (0-100%)
     """
-    # Convert string to datetime if needed
-    if isinstance(date, str):
-        if len(date) <= 10:  # Just date, no time
-            date = datetime.strptime(date, '%Y-%m-%d')
-        else:  # Date with time
-            date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
-    
-    # Make sure the datetime is UTC-aware
-    if date.tzinfo is None:
-        date = date.replace(tzinfo=timezone.utc)
-    
     t = ts.utc(date)
     
     # Calculate elongation (angle between sun and moon as seen from Earth)
@@ -79,39 +67,12 @@ def get_lunar_phase(date):
     return phase_name, illumination
 
 
-def binary_search_rise_set(observer, t_start, t_end):
-    """
-    Binary search to find the exact time when moon crosses horizon.
-    Returns datetime in UTC.
-    """
-    # Convert time objects to datetime for easier manipulation
-    dt_start = t_start.utc_datetime()
-    dt_end = t_end.utc_datetime()
-    
-    # Binary search for horizon crossing
-    for _ in range(20):  # 20 iterations for ~1 second precision
-        mid = dt_start + (dt_end - dt_start) / 2
-        t_mid = ts.utc(mid)
-        alt, az, distance = observer.at(t_mid).observe(moon).apparent().altaz()
-        altitude = alt.degrees
-        
-        if altitude >= 0:
-            dt_end = mid
-        else:
-            dt_start = mid
-        
-        if (dt_end - dt_start).total_seconds() < 0.01:  # Stop when within 0.01 seconds
-            break
-    
-    return dt_start + (dt_end - dt_start) / 2
-
-
 def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=275.0):
     """
     Get moon rise and set times for a given calendar day using Skyfield almanac.
     
     Args:
-        date: String in format 'YYYY-MM-DD' or datetime object (assumed UTC)
+        date: UTC-aware datetime object
         latitude: Observer's latitude in degrees (default: 39.9612, Columbus, OH)
         longitude: Observer's longitude in degrees (default: -82.9988, Columbus, OH)
         elevation_m: Observer's elevation in meters (default: 275.0, Columbus, OH)
@@ -119,15 +80,7 @@ def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=27
     Returns:
         rise_time: datetime (UTC) of first moonrise in the day, or None
         set_time: datetime (UTC) of first moonset in the day, or None
-        moon_up_all_day: True if Moon is above horizon all day
-        moon_down_all_day: True if Moon is below horizon all day
     """
-    # Normalize date
-    if isinstance(date, str):
-        date = datetime.strptime(date, '%Y-%m-%d')
-    if date.tzinfo is None:
-        date = date.replace(tzinfo=timezone.utc)
-
     # Observer location
     site_topos = Topos(latitude_degrees=latitude,
                        longitude_degrees=longitude,
@@ -144,13 +97,6 @@ def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=27
     above_horizon_fn = almanac.risings_and_settings(eph, moon, site_topos)
     times, events = almanac.find_discrete(t0, t1, above_horizon_fn)
 
-    # Determine if the Moon is always up or always down during the day
-    # Coerce to array to be robust across Skyfield versions (scalar vs array)
-    start_up_val = np.asarray(above_horizon_fn(t0)).ravel()[0]
-    is_up_at_start = bool(start_up_val)
-    moon_up_all_day = is_up_at_start and len(times) == 0
-    moon_down_all_day = (not is_up_at_start) and len(times) == 0
-
     # Extract first rise and set times within the day
     rise_time = None
     set_time = None
@@ -163,7 +109,7 @@ def get_moon_rise_set(date, latitude=39.9612, longitude=-82.9988, elevation_m=27
         if rise_time is not None and set_time is not None:
             break
 
-    return rise_time, set_time, moon_up_all_day, moon_down_all_day
+    return rise_time, set_time
 
 
 def check_lunar_eclipse(date):
@@ -207,32 +153,24 @@ def check_lunar_eclipse(date):
     return None, 0, offset
 
 
-def sample_night_for_eclipse(date_utc, rise_time, set_time, moon_up_all_day, moon_down_all_day):
+def sample_night_for_eclipse(date_utc, rise_time, set_time):
     """
     Sample throughout a single night (hourly) to find maximum eclipse.
     Returns: (eclipse_type, shadow_depth, max_eclipse_time_utc)
     """
-    if moon_down_all_day:
+    if not rise_time or not set_time:
         return None, 0, None
     
     best_eclipse_type = None
     best_depth = 0
     best_time = None
     
-    # Get the sampling window
-    if moon_up_all_day:
-        # Moon is up all day, sample the entire 24-hour period
-        night_start = date_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-        night_end = night_start + timedelta(days=1)
-    elif rise_time and set_time:
-        # Moon has rise/set times
-        night_start = rise_time
-        night_end = set_time
-        # If set time is before rise time on the calendar, moon sets next day
-        if night_end < night_start:
-            night_end = night_end + timedelta(days=1)
-    else:
-        return None, 0, None
+    # Get the sampling window from rise/set times
+    night_start = rise_time
+    night_end = set_time
+    # If set time is before rise time on the calendar, moon sets next day
+    if night_end < night_start:
+        night_end = night_end + timedelta(days=1)
     
     # Sample every hour throughout the visible period
     current_time = night_start
@@ -285,8 +223,6 @@ def main():
     illuminations = []
     rise_times = []
     set_times = []
-    moon_up_all_days = []
-    moon_down_all_days = []
     eclipse_types = []
     eclipse_depths = []
     eclipse_times = []
@@ -311,13 +247,12 @@ def main():
         supermoon_flags.append(is_supermoon)
         # --- END SUPERMOON CHECK ---
         # Get moon rise/set times for the calendar day
-        date_str = date_utc.strftime('%Y-%m-%d')
-        rise_time, set_time, moon_up_all_day, moon_down_all_day = get_moon_rise_set(date_str)
+        rise_time, set_time = get_moon_rise_set(date_utc)
         # Check for lunar eclipse - sample hourly throughout the night if near full moon
         eclipse_type, eclipse_depth, eclipse_time_utc = None, 0, None
         if illumination > 85:  # Only check during near full moons
             eclipse_type, eclipse_depth, eclipse_time_utc = sample_night_for_eclipse(
-                date_utc, rise_time, set_time, moon_up_all_day, moon_down_all_day
+                date_utc, rise_time, set_time
             )
             # Store eclipse info keyed by its actual calendar date (in Eastern time)
             if eclipse_time_utc:
@@ -328,8 +263,8 @@ def main():
                 if eclipse_date not in eclipse_dict or eclipse_depth > eclipse_dict[eclipse_date][1]:
                     eclipse_dict[eclipse_date] = (eclipse_type, eclipse_depth, eclipse_time_str)
         # Format times for display
-        rise_str = "All day" if moon_up_all_day else ("No rise" if rise_time is None else rise_time.strftime('%H:%M:%S UTC'))
-        set_str = "Down all day" if moon_down_all_day else ("No set" if set_time is None else set_time.strftime('%H:%M:%S UTC'))
+        rise_str = "No rise" if rise_time is None else rise_time.strftime('%H:%M:%S UTC')
+        set_str = "No set" if set_time is None else set_time.strftime('%H:%M:%S UTC')
         current_date = date_local.strftime('%Y-%m-%d')
         # Store data
         dates.append(current_date)
@@ -337,8 +272,6 @@ def main():
         illuminations.append(illumination)
         rise_times.append(rise_str)
         set_times.append(set_str)
-        moon_up_all_days.append(moon_up_all_day)
-        moon_down_all_days.append(moon_down_all_day)
     # After all days, map eclipse info for each calendar date
     for i, current_date in enumerate(dates):
         if current_date in eclipse_dict:
@@ -360,8 +293,6 @@ def main():
         'Illumination_%': illuminations,
         'Moon_Rise': rise_times,
         'Moon_Set': set_times,
-        'Up_All_Day': moon_up_all_days,
-        'Down_All_Day': moon_down_all_days,
         'Eclipse_Type': eclipse_types,
         'Eclipse_Depth_%': eclipse_depths,
         'Eclipse_Time': eclipse_times,
